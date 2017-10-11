@@ -5,36 +5,56 @@
  */
 
 $(document).ready(function () {
-    // will support only Firefox: 13.0+ Chrome: 20+ Internet Explorer: 10.0+ Safari: 6.0 Opera: 12.10
-    $.ajaxTransport("+image", function (options, originalOptions, jqXHR) {
-        console.log("ajaxTransport called");
-        console.log(options);
-        var image;
-        return {
-            send: function (headers, callback) {
-                console.log("ajaxTransport send called");
-                image = new Image();
-                image.onreadystatechange = image.onload = function () {
-                    console.log("ajaxTransport image onload");
-                    callback(200, "success", {image: image});
-                    console.log("ajaxTransport image onload callback executed");
-                };
-                image.src = options.url;
-                $("#photo_ajaxTransport").html(image);
-                console.log("ajaxTransport send completed");
+    console.log("document is ready");
 
-            },
-            abort: function () {
-                console.log("ajaxTransport abort called");
-                image = null;
-            }
-        };
+    // will support only Firefox: 13.0+ Chrome: 20+ Internet Explorer: 10.0+ Safari: 6.0 Opera: 12.10
+    // use this transport for "binary" data type
+    $.ajaxTransport("+binary", function (options, originalOptions, jqXHR) {
+        // check for conditions and support for blob / arraybuffer response type
+        if (window.FormData && ((options.dataType && (options.dataType === 'binary')) || (options.data && ((window.ArrayBuffer && options.data instanceof ArrayBuffer) || (window.Blob && options.data instanceof Blob))))) {
+            return {
+                // create new XMLHttpRequest
+                send: function (headers, callback) {
+                    // setup all variables
+                    var xhr = new XMLHttpRequest(),
+                        url = options.url,
+                        type = options.type,
+                        async = options.async || true,
+                        // blob or arraybuffer. Default is blob
+                        dataType = options.responseType || "blob",
+                        data = options.data || null,
+                        username = options.username || null,
+                        password = options.password || null;
+
+                    xhr.addEventListener('load', function () {
+                        var data = {};
+                        data[options.dataType] = xhr.response;
+                        // make callback and send data
+                        callback(xhr.status, xhr.statusText, data, xhr.getAllResponseHeaders());
+                    });
+
+                    xhr.open(type, url, async, username, password);
+
+                    // setup custom headers
+                    for (var i in headers) {
+                        xhr.setRequestHeader(i, headers[i]);
+                    }
+
+                    xhr.responseType = dataType;
+                    xhr.send(data);
+                },
+                abort: function () {
+                    jqXHR.abort();
+                }
+            };
+        }
     });
 
     var options = {
         url: "./picture.png",
         method: "get",
-        dataType: "image",
+        dataType: "binary",
+        // processData: false,
         headers: {
             Authorization: 'Bearer example'
         }
